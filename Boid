@@ -1,0 +1,159 @@
+######################################################################
+#  Main Flocking.py file
+######################################################################
+
+# Imports
+import pygame
+import random
+from pygame.locals import *
+
+running = True
+windowWidth = 1200
+windowHeight = 980
+pygame.init()
+newWindow = 0
+flock = []
+
+class Boid:
+    def __init__(self):
+        self.position = pygame.Vector2()
+        self.position.xy = random.randrange(0, windowHeight), random.randrange(0, windowWidth)
+        self.velocity = pygame.Vector2()
+        self.velocity.xy = random.randrange(-4, 4), random.randrange(-4, 4)
+        self.acceleration = pygame.Vector2()
+        self.maxSpeed = 4.0
+        self.maxForce = 0.2
+        
+              
+    def drawBoid(self, window):
+        pygame.draw.circle(window, (0, 255, 0), self.position, 1)
+        
+    
+    
+    def update(self, window, flock):
+        alignment = self.alignment(flock)
+        seperation = self.seperation(flock)
+        cohesion = self.cohesion(flock)
+        #self.acceleration = self.alignment(flock)
+        self.acceleration = alignment + cohesion + seperation
+        self.velocity += self.acceleration
+        self.position += self.velocity
+        self.acceleration = self.acceleration * 0
+        self.drawBoid(window)
+ 
+ 
+    def edges(self):
+        if self.position.x > windowWidth:
+            self.position.x = 0
+        elif self.position.x < 0:
+            self.position.x = windowWidth
+        
+        if self.position.y > windowHeight:
+            self.position.y = 0
+        elif self.position.y < 0:
+            self.position.y = windowHeight
+        
+        
+    def alignment(self, flockList):
+        perceptionRadius = 50.0           #Field of view for boid
+        steering = pygame.Vector2()       #Steering vector to return 
+        totalInView = 0                   #Amount of 'other' boids in view
+        
+        for others in flockList:
+            d = self.position.distance_to(others.position)   #Checking position to nearest boid
+            if others != self and d < perceptionRadius:      #If not itself and within FoV
+                steering = steering + others.velocity        #Add my vector with the 'other' boid
+                totalInView += 1                             #Inc amount of others in FoV 
+                        
+        if totalInView > 0:                                  #If there is at least one in FoV
+            steering = steering / totalInView                #Divide by total in view
+            
+            if steering.length() > 0:                       #Check if magnitude is not 0
+                steering.scale_to_length(self.maxSpeed)      #Set all magnitudes to the same length 
+            steering = steering - self.velocity
+            if steering.length() > self.maxForce:
+                steering.scale_to_length(self.maxForce)
+
+        return steering
+        
+    def seperation(self, flockList):
+        perceptionRadius = 10.0           #Field of view for boid
+        steering = pygame.Vector2()       #Steering vector to return 
+        totalInView = 0                   #Amount of 'other' boids in view
+        
+        for others in flockList:
+            d = self.position.distance_to(others.position)   #Checking position to nearest boid
+            if others != self and d < perceptionRadius:      #If not itself and within FoV
+                diff = pygame.Vector2()
+                diff = self.position - others.position
+                diff = diff / d * d
+                steering += diff        
+                totalInView += 1                             #Incr amount of others in FoV 
+                        
+        if totalInView > 0:                                  #If there is at least one in FoV
+            steering = steering / totalInView                #Divide by total in view
+            
+            if steering.length() != 0:                       #Check if magnitude is not 0
+                steering.scale_to_length(self.maxSpeed)      #Set all magnitudes to the same length 
+            steering = steering - self.velocity
+            if steering.length() > self.maxForce:
+                steering.scale_to_length(self.maxForce)
+
+        return steering    
+        
+    def cohesion(self, flockList):
+        perceptionRadius = 5.0           #Field of view for boid
+        steering = pygame.Vector2()       #Steering vector to return 
+        totalInView = 0                   #Amount of 'other' boids in view
+        
+        for others in flockList:
+            d = self.position.distance_to(others.position)   #Checking position to nearest boid
+            if others != self and d < perceptionRadius:      #If not itself and within FoV
+                steering = steering + others.position        #Add my vector with the 'other' boid
+                totalInView += 1                             #Inc amount of others in FoV 
+                        
+        if totalInView > 0:                                  #If there is at least one in FoV
+            steering = steering / totalInView                #Divide by total in view
+            steering = steering - self.position
+            if steering.length() != 0:                       #Check if magnitude is not 0
+                steering.scale_to_length(self.maxSpeed)      #Set all magnitudes to the same length 
+            steering = steering - self.velocity
+            if steering.length() > self.maxForce:
+                steering.scale_to_length(self.maxForce)
+
+        return steering
+    
+    
+def windowSetup():
+    # create the display surface object
+    # of specific dimension.
+    window = pygame.display.set_mode((windowWidth, windowHeight))
+    window.fill((0, 0, 0))
+    return window
+
+newWindow = windowSetup()
+
+for i in range(100):
+    flock.append(Boid())
+
+
+   
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            running = False
+        
+            
+    newWindow.fill((0, 0, 0))
+    
+    
+    for boid in flock:
+        boid.update(newWindow, flock)
+        boid.edges()
+       
+    
+    pygame.display.update()
+    
+pygame.quit()
